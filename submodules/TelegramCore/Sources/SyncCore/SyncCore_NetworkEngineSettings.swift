@@ -3,11 +3,13 @@ import Postbox
 public struct NetworkEngineSettings: Codable, Equatable {
     public var engine: NetworkEngineKind
     
+    /// This fork runs on Reticulum: the iOS app's network is the in-process local server over the
+    /// mesh unless the Debug Settings switch says otherwise. Telegram-Mac keeps the Rust MTProto engine.
     public static var defaultSettings: NetworkEngineSettings {
         #if os(macOS)
         return NetworkEngineSettings(engine: .rust)
         #else
-        return NetworkEngineSettings(engine: .mtProtoKit)
+        return NetworkEngineSettings(engine: .reticulum)
         #endif
     }
     

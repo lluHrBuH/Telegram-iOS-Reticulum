@@ -449,10 +449,21 @@ func networkEngineRustDisabledReason(appConfiguration: AppConfiguration, engineS
     return nil
 }
 
-private func resolveNetworkEngine(accountId: AccountRecordId, context: MTContext, factory: NetworkEngineFactory?, settings: NetworkEngineSettings?, rustDisabledReason: String?, isAppExtension: Bool) -> NetworkEngine {
+private func resolveNetworkEngine(accountId: AccountRecordId, context: MTContext, factory: NetworkEngineFactory?, settings: NetworkEngineSettings?, rustDisabledReason: String?, environment: NetworkEngineAccountEnvironment) -> NetworkEngine {
     let preferredEngine = settings?.engine ?? NetworkEngineSettings.defaultSettings.engine
+    let isAppExtension = environment.isAppExtension
     guard let factory = factory else {
         Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no factory, preferred \(preferredEngine.rawValue))")
+        return MtProtoKitEngine(context: context)
+    }
+    // The Reticulum backend is not an MTProto engine: the server kill switch and the crash-loop
+    // fallback are about the Rust engine and do not apply to it.
+    if preferredEngine == .reticulum {
+        if factory.kind == .reticulum, let engine = factory.makeEngine(context: context, environment: environment) {
+            Logger.shared.log("Network", "Account \(accountId.int64): engine \(engine.kind.rawValue)")
+            return engine
+        }
+        Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no reticulum factory, or it declined)")
         return MtProtoKitEngine(context: context)
     }
     if let rustDisabledReason = rustDisabledReason {
@@ -471,6 +482,8 @@ private func resolveNetworkEngine(accountId: AccountRecordId, context: MTContext
             Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (factory declined rust)")
             return MtProtoKitEngine(context: context)
         }
+    case .reticulum:
+        return MtProtoKitEngine(context: context)
     }
 }
 
@@ -531,7 +544,7 @@ private final class NetworkMainSessionDelegate: NetworkEngineSessionDelegate {
     }
 }
 
-func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializationArguments, supplementary: Bool, datacenterId: Int, keychain: Keychain, basePath: String, testingEnvironment: Bool, languageCode: String?, proxySettings: ProxySettings?, networkSettings: NetworkSettings?, networkEngine: NetworkEngineInputs, phoneNumber: String?, useRequestTimeoutTimers: Bool, appConfiguration: AppConfiguration) -> Signal<Network, NoError> {
+func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializationArguments, supplementary: Bool, datacenterId: Int, keychain: Keychain, basePath: String, testingEnvironment: Bool, languageCode: String?, proxySettings: ProxySettings?, networkSettings: NetworkSettings?, networkEngine: NetworkEngineInputs, phoneNumber: String?, useRequestTimeoutTimers: Bool, appConfiguration: AppConfiguration, encryptionParameters: ValueBoxEncryptionParameters? = nil) -> Signal<Network, NoError> {
     // TelegramApi's field accessors are inlined into this module; trap if it was built against a
     // different TelegramApi layout (stale objects from an incremental non-Bazel build).
     tlVerifyClientLayout()
@@ -707,7 +720,7 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
                 rustDisabledReason = networkLivenessDisabledReason()
             }
             #endif
-            let resolvedEngine = resolveNetworkEngine(accountId: accountId, context: context, factory: arguments.networkEngineFactory, settings: networkEngine.settings, rustDisabledReason: rustDisabledReason, isAppExtension: isAppExtension)
+            let resolvedEngine = resolveNetworkEngine(accountId: accountId, context: context, factory: arguments.networkEngineFactory, settings: networkEngine.settings, rustDisabledReason: rustDisabledReason, environment: NetworkEngineAccountEnvironment(accountId: accountId, basePath: basePath, encryptionParameters: encryptionParameters, isAppExtension: isAppExtension))
             resolvedEngine.activate()
             let rustEngineDisabled = rustDisabledReason != nil
             // Live engine switching (the server kill switch, a WEB proxy turned on and off) is macOS only.
@@ -1270,6 +1283,9 @@ public final class Network: NSObject {
                 replacement = MtProtoKitEngine(context: context)
             case .rust:
                 replacement = engineFactory?.makeEngine(context: context, isAppExtension: isAppExtension)
+            case .reticulum:
+                // The Reticulum backend is chosen at launch only (its server holds the account's state).
+                replacement = nil
             }
             if replacement == nil {
                 Logger.shared.log("Network", "Engine switch to \(kind.rawValue) declined: \(reason)")

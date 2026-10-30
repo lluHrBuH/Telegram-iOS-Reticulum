@@ -1,4 +1,5 @@
 import Foundation
+import Postbox
 import SwiftSignalKit
 import MtProtoKit
 
@@ -6,6 +7,8 @@ import MtProtoKit
 public enum NetworkEngineKind: String, Codable, Equatable {
     case mtProtoKit
     case rust
+    /// The Reticulum backend: an in-process server (`LocalServer`) over the mesh, no MTProto.
+    case reticulum
 }
 
 /// Per-request transport options.
@@ -379,18 +382,50 @@ public extension NetworkEngine {
     }
 }
 
+/// What an engine that keeps per-account state (the Reticulum backend's local server) needs to
+/// know about the account its network serves.
+public struct NetworkEngineAccountEnvironment {
+    public let accountId: AccountRecordId
+    /// The account's directory (`<root>/<account>`), which holds its Postbox.
+    public let basePath: String
+    /// The Postbox's encryption parameters, for state the engine keeps beside it; nil where the
+    /// caller has none (a login datacenter migration).
+    public let encryptionParameters: ValueBoxEncryptionParameters?
+    public let isAppExtension: Bool
+
+    public init(accountId: AccountRecordId, basePath: String, encryptionParameters: ValueBoxEncryptionParameters?, isAppExtension: Bool) {
+        self.accountId = accountId
+        self.basePath = basePath
+        self.encryptionParameters = encryptionParameters
+        self.isAppExtension = isAppExtension
+    }
+}
+
 /// Supplies an alternative engine. Passed through `NetworkInitializationArguments`, so a process
 /// that does not pass one (extensions) stays on MtProtoKit.
 public protocol NetworkEngineFactory {
+    /// The kind of engine this factory makes; the settings' preferred kind selects it.
+    var kind: NetworkEngineKind { get }
     /// Returns nil when the engine cannot serve this context (for example an unsupported proxy
     /// configuration); the network then uses MtProtoKit. The TCP connection factory to use is
     /// `context.makeTcpConnectionInterface`, which changes when the proxy changes.
     func makeEngine(context: MTContext, isAppExtension: Bool) -> NetworkEngine?
+    /// As `makeEngine(context:isAppExtension:)`, with the account the network serves; the default
+    /// ignores the account.
+    func makeEngine(context: MTContext, environment: NetworkEngineAccountEnvironment) -> NetworkEngine?
     /// The engine carries WEB proxies itself; otherwise the network moves to MtProtoKit while one is on.
     var supportsWebProxy: Bool { get }
 }
 
 public extension NetworkEngineFactory {
+    var kind: NetworkEngineKind {
+        return .rust
+    }
+
+    func makeEngine(context: MTContext, environment: NetworkEngineAccountEnvironment) -> NetworkEngine? {
+        return self.makeEngine(context: context, isAppExtension: environment.isAppExtension)
+    }
+
     var supportsWebProxy: Bool {
         return false
     }

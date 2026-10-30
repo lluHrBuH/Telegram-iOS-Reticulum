@@ -51,6 +51,48 @@ public final class ApiFunctionCall {
     public func serialized() -> Buffer {
         return Buffer(data: tlSerializedData(self.object, boxed: true))
     }
+
+    /// The schema's own "nothing" answer to this function, for an in-process server that does not
+    /// implement it: an empty vector for a `Vector` result, `boolTrue` for `Bool`, otherwise the
+    /// result type's zero-field `*NotModified` (preferred) or `*Empty` constructor. `nil` when the
+    /// result type has none of those, so the server answers with an error instead.
+    public func emptyResult() -> Buffer? {
+        let result = self.info.pointee.result
+        let buffer = Buffer()
+        switch result.kind {
+        case .vector:
+            buffer.appendInt32(481674261)
+            buffer.appendInt32(0)
+            return buffer
+        case .object:
+            let type = TLApiTypeAt(UInt32(result.typeIndex)).pointee
+            let typeName = String(cString: type.name)
+            var chosen: UnsafePointer<TLConstructorInfo>?
+            for index in 0 ..< Int(type.constructorCount) {
+                let constructor = type.constructors[index]
+                guard constructor.pointee.fieldCount == 0 else {
+                    continue
+                }
+                let name = String(cString: constructor.pointee.name)
+                if typeName == "Bool" {
+                    if name == "boolTrue" {
+                        chosen = constructor
+                    }
+                } else if name.hasSuffix("NotModified") {
+                    chosen = constructor
+                    break
+                } else if name.hasSuffix("Empty") && chosen == nil {
+                    chosen = constructor
+                }
+            }
+            guard let chosen = chosen else {
+                return nil
+            }
+            return Buffer(data: tlSerializedData(TLObjectSingleton(chosen), boxed: true))
+        default:
+            return nil
+        }
+    }
 }
 
 extension Api {
