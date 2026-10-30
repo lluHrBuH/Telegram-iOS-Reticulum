@@ -134,3 +134,61 @@ public final class ReticulumNetworkEngineFactory: NetworkEngineFactory {
         return server
     }
 }
+
+/// The engine of a process that cannot reach the mesh: an app extension of a Reticulum build.
+/// It never connects and answers every request with an error at once, so nothing in an extension
+/// contacts the Telegram servers (there is no auth key for them) or waits on a network that will
+/// not come. The Postbox still serves what the app stored.
+public final class IdleNetworkEngine: NetworkEngine {
+    public let kind: NetworkEngineKind = .reticulum
+    private let reason: String
+
+    public init(reason: String) {
+        self.reason = reason
+    }
+
+    public func makeSession(datacenterId: Int, role: NetworkEngineSessionRole, usageCalculationInfo: MTNetworkUsageCalculationInfo?, delegate: NetworkEngineSessionDelegate?) -> NetworkEngineSession {
+        return IdleNetworkSession(datacenterId: datacenterId, reason: self.reason, delegate: delegate)
+    }
+}
+
+private final class IdleRequestService: NetworkEngineRequestService {
+    private let reason: String
+
+    init(reason: String) {
+        self.reason = reason
+    }
+
+    func add(_ request: NetworkEngineRequest) -> Disposable {
+        let info = NetworkEngineResponseInfo(timestamp: Date().timeIntervalSince1970, networkType: 0, duration: 0.0)
+        request.completed(.failure(NetworkEngineRequestFailure(error: localServerError(500, self.reason), info: info)))
+        return EmptyDisposable
+    }
+}
+
+private final class IdleNetworkSession: NetworkEngineSession {
+    let datacenterId: Int
+    let requestService: NetworkEngineRequestService
+
+    init(datacenterId: Int, reason: String, delegate: NetworkEngineSessionDelegate?) {
+        self.datacenterId = datacenterId
+        self.requestService = IdleRequestService(reason: reason)
+        delegate?.networkSessionConnectionStateChanged(NetworkEngineConnectionState(isNetworkAvailable: false, isConnected: false, isUpdatingConnectionContext: false, isPerformingServiceTasks: false, proxyAddress: nil, proxyHasConnectionIssues: false))
+    }
+
+    func setPaused(_ paused: Bool) {
+    }
+
+    func setOnline(_ online: Bool) {
+    }
+
+    func addUpdateSink(_ sink: NetworkEngineUpdateSink) {
+    }
+
+    func stop() {
+    }
+
+    func movePendingRequests(to service: NetworkEngineRequestService, deadline: Double, completion: @escaping () -> Void) {
+        completion()
+    }
+}

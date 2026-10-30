@@ -452,18 +452,21 @@ func networkEngineRustDisabledReason(appConfiguration: AppConfiguration, engineS
 private func resolveNetworkEngine(accountId: AccountRecordId, context: MTContext, factory: NetworkEngineFactory?, settings: NetworkEngineSettings?, rustDisabledReason: String?, environment: NetworkEngineAccountEnvironment) -> NetworkEngine {
     let preferredEngine = settings?.engine ?? NetworkEngineSettings.defaultSettings.engine
     let isAppExtension = environment.isAppExtension
-    guard let factory = factory else {
-        Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no factory, preferred \(preferredEngine.rawValue))")
-        return MtProtoKitEngine(context: context)
-    }
     // The Reticulum backend is not an MTProto engine: the server kill switch and the crash-loop
-    // fallback are about the Rust engine and do not apply to it.
+    // fallback are about the Rust engine and do not apply to it. Without its factory (an app
+    // extension, which cannot run the mesh) the account's network stays idle rather than dialling
+    // the Telegram servers, which hold no key for a Reticulum account.
     if preferredEngine == .reticulum {
-        if factory.kind == .reticulum, let engine = factory.makeEngine(context: context, environment: environment) {
+        if let factory = factory, factory.kind == .reticulum, let engine = factory.makeEngine(context: context, environment: environment) {
             Logger.shared.log("Network", "Account \(accountId.int64): engine \(engine.kind.rawValue)")
             return engine
         }
-        Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no reticulum factory, or it declined)")
+        let reason = isAppExtension ? "RETICULUM_UNAVAILABLE_IN_EXTENSION" : "RETICULUM_UNAVAILABLE"
+        Logger.shared.log("Network", "Account \(accountId.int64): engine idle (\(reason))")
+        return IdleNetworkEngine(reason: reason)
+    }
+    guard let factory = factory else {
+        Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no factory, preferred \(preferredEngine.rawValue))")
         return MtProtoKitEngine(context: context)
     }
     if let rustDisabledReason = rustDisabledReason {

@@ -1005,6 +1005,46 @@ renderer stamps each laid-out run with its node and flat range so a selection ma
 node-id scheme is shared by the enumerator and the V2 layout and nothing checks the pair. Details
 in [`docs/instantpage-richtext.md`](docs/instantpage-richtext.md) under "Rich reply quotes".
 
+## Reticulum backend (this fork runs without a Telegram server)
+
+The iOS app's default network engine is `.reticulum`: an **in-process local server** behind the
+`NetworkEngine` seam answers the client's own MTProto calls from a second `SqliteValueBox` and
+carries messages as LXMF over the Reticulum mesh (TCP to a public node, BLE to an RNode or RTNode).
+Everything above the seam (Postbox, state manager, pending messages, media fetch, UI) is unchanged.
+Design, invariants and the Mac-side verification recipe: [`docs/reticulum-backend.md`](docs/reticulum-backend.md).
+None of this shows up as a build error:
+
+- **Code:** `submodules/TelegramCore/Sources/Reticulum/` (engine, `LocalServer` + handlers, store,
+  `LXMFEnvelope`, `ReticulumTransport` protocol, msgpack), `submodules/ReticulumEngine/` (the Rust
+  stack's lifecycle, mesh transport, BLE hosts), `third-party/reticulum/` (vendored jrl290 crates +
+  `telegram-reticulum-ffi`), `AuthorizationUI/Sources/ReticulumIdentityController.swift`,
+  `SettingsUI/Sources/Reticulum/`. `Api.parseFunctionCall` (TelegramApi) decodes a serialized
+  function call through the TL C engine; the generator is untouched.
+- **Peer ids are derived from the LXMF address** (`LocalServerPeerIdentity`): user id = first 7 bytes
+  of the 16-byte hash, access hash = last 8 (must be non-nil, or `apiInputPeer` refuses the peer),
+  username = the 32-hex address. Self is a `CloudUser` on master datacenter 1.
+- **Unimplemented methods get the schema's empty answer**, never silence: a method that returns
+  nothing makes a `managed*` task retry forever. `help.getAppConfig` is answered from
+  `LocalServerAppConfiguration.entries`; that is where features are switched off.
+- **Plain content + Telegram fields.** Text is LXMF content, media the standard `0x05/0x06/0x07`
+  fields (so Sideband reads them); Telegram semantics ride in `0xFB`/`0xFC`. Control envelopes go
+  only to peers that have shown the envelope (`speaksTelegram`). A send answers only on SENT or
+  DELIVERED; a failure drops the server's copy and answers `PEER_UNREACHABLE`.
+- **One Rust transport per process**, so `ReticulumRuntime.shared` runs one account's stack at a
+  time; the identity lives at `<account>/reticulum/identity` (64 bytes). **Never call back into the
+  Rust library from one of its callbacks**: the router holds its lock while calling and deadlocks
+  (measured). Every callback copies its arguments and hops to the runtime queue.
+- App extensions have no factory and get `IdleNetworkEngine` (never connects, fails requests at
+  once). Debug Settings ▸ "Reticulum Backend" switches an account back to the Rust MTProto engine
+  for comparison; `NetworkEngineSettings.defaultSettings` is `.rust` on macOS, `.reticulum` on iOS.
+- Tests: `//submodules/TelegramCore:TelegramCoreTests` (`LocalServerTests`, two local servers
+  joined by a fake transport), `//submodules/TelegramApi:TelegramApiTests` (`FunctionCallTests`),
+  `cargo test` in `third-party/reticulum/telegram-reticulum-ffi` (loopback routers), and
+  `lxmf_probe` against `rmap.world:4242`. The cloud container has neither Xcode nor raw TCP egress,
+  so the Swift build, the Bazel tests, the `reticulum_crates` repin and the mesh probe run on the Mac.
+- Licensing: the vendored crates carry the Reticulum License (MIT + use restrictions) against the
+  app's GPLv2; see `third-party/reticulum/VENDOR.md` before distributing.
+
 ## Rust MTProto engine on iOS
 
 The Rust MTProto engine (`third-party/mtproto-engine`, Swift wrapper `submodules/MTProtoRustEngine`)
