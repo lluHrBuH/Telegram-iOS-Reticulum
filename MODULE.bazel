@@ -178,6 +178,69 @@ mtproto_engine_crates.from_specs(
 )
 use_repo(mtproto_engine_crates, "mtproto_engine_crates")
 
+# Third-party crates of the Reticulum stack (third-party/reticulum: Reticulum-rust, LXMF-rust, app-links and
+# telegram-reticulum-ffi). Every version is pinned with `=` to telegram-reticulum-ffi/Cargo.lock, which
+# `cargo` keeps in step on Linux. Kept apart from the other crate repositories so the lockfiles move
+# independently. Repin only this repository:
+#   CARGO_BAZEL_REPIN=1 CARGO_BAZEL_REPIN_ONLY=reticulum_crates ./build-input/bazel-9.2.0-darwin-arm64 build //third-party/reticulum:telegram_reticulum_ffi_archive
+reticulum_crates = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+reticulum_crates.spec(package = "aes", repositories = ["reticulum_crates"], version = "=0.8.3")
+reticulum_crates.spec(package = "atty", repositories = ["reticulum_crates"], version = "=0.2.14")
+reticulum_crates.spec(package = "base64", repositories = ["reticulum_crates"], version = "=0.22.1")
+reticulum_crates.spec(package = "block-padding", repositories = ["reticulum_crates"], version = "=0.3.3")
+reticulum_crates.spec(package = "btleplug", repositories = ["reticulum_crates"], version = "=0.11.5")
+reticulum_crates.spec(package = "bzip2", repositories = ["reticulum_crates"], version = "=0.4.4")
+reticulum_crates.spec(package = "cbc", repositories = ["reticulum_crates"], version = "=0.1.2")
+reticulum_crates.spec(package = "chrono", repositories = ["reticulum_crates"], version = "=0.4.45")
+reticulum_crates.spec(package = "ctrlc", features = ["termination"], repositories = ["reticulum_crates"], version = "=3.5.2")
+reticulum_crates.spec(package = "data-encoding", repositories = ["reticulum_crates"], version = "=2.11.1")
+reticulum_crates.spec(package = "ed25519-dalek", features = ["rand"], repositories = ["reticulum_crates"], version = "=1.0.1")
+reticulum_crates.spec(package = "futures", repositories = ["reticulum_crates"], version = "=0.3.34")
+reticulum_crates.spec(package = "hkdf", repositories = ["reticulum_crates"], version = "=0.12.3")
+reticulum_crates.spec(package = "hmac", repositories = ["reticulum_crates"], version = "=0.12.1")
+reticulum_crates.spec(package = "if-addrs", features = ["link-local"], repositories = ["reticulum_crates"], version = "=0.10.2")
+reticulum_crates.spec(package = "libc", repositories = ["reticulum_crates"], version = "=0.2.191")
+reticulum_crates.spec(package = "once_cell", repositories = ["reticulum_crates"], version = "=1.21.4")
+reticulum_crates.spec(package = "parking_lot", repositories = ["reticulum_crates"], version = "=0.12.5")
+reticulum_crates.spec(package = "rand", repositories = ["reticulum_crates"], version = "=0.8.8")
+reticulum_crates.spec(package = "rmp", repositories = ["reticulum_crates"], version = "=0.8.14")
+reticulum_crates.spec(package = "rmp-serde", repositories = ["reticulum_crates"], version = "=1.1.2")
+reticulum_crates.spec(package = "rmpv", repositories = ["reticulum_crates"], version = "=1.0.0")
+reticulum_crates.spec(package = "rusqlite", features = ["bundled"], repositories = ["reticulum_crates"], version = "=0.31.0")
+reticulum_crates.spec(package = "serde", features = ["derive"], repositories = ["reticulum_crates"], version = "=1.0.229")
+reticulum_crates.spec(package = "serde_bytes", repositories = ["reticulum_crates"], version = "=0.11.19")
+reticulum_crates.spec(package = "serde_json", repositories = ["reticulum_crates"], version = "=1.0.154")
+reticulum_crates.spec(package = "serialport", repositories = ["reticulum_crates"], version = "=4.10.1")
+reticulum_crates.spec(package = "sha2", repositories = ["reticulum_crates"], version = "=0.10.9")
+reticulum_crates.spec(package = "socket2", repositories = ["reticulum_crates"], version = "=0.5.10")
+reticulum_crates.spec(package = "tokio", features = ["macros", "rt-multi-thread", "sync", "time"], repositories = ["reticulum_crates"], version = "=1.54.1")
+reticulum_crates.spec(package = "uuid", repositories = ["reticulum_crates"], version = "=1.7.0")
+reticulum_crates.spec(package = "windows-sys", features = ["Win32_Foundation", "Win32_NetworkManagement_IpHelper"], repositories = ["reticulum_crates"], version = "=0.52.0")
+reticulum_crates.spec(package = "x25519-dalek", repositories = ["reticulum_crates"], version = "=1.1.1")
+# ARMv8 AES instructions (Reticulum-rust pins aes =0.8.3, the same backend switch as the MTProto engine):
+# Cargo would read it from a .cargo/config.toml, which Bazel does not.
+reticulum_crates.annotation(crate = "aes", repositories = ["reticulum_crates"], rustc_flags = ["--cfg", "aes_armv8", "-Copt-level=3"])
+# Hot non-generic code (packet crypto, hashing, bzip2 resources, msgpack) at -Copt-level=3 whatever the
+# compilation mode, as for the MTProto engine's crates.
+reticulum_crates.annotation(crate = "sha2", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.annotation(crate = "curve25519-dalek", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.annotation(crate = "ed25519-dalek", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.annotation(crate = "x25519-dalek", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.annotation(crate = "bzip2", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.annotation(crate = "rmp", repositories = ["reticulum_crates"], rustc_flags = ["-Copt-level=3"])
+reticulum_crates.from_specs(
+    name = "reticulum_crates",
+    cargo_lockfile = "//third-party/reticulum/telegram-reticulum-ffi:Cargo.Bazel.lock",
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-darwin",
+        "x86_64-apple-ios",
+    ],
+)
+use_repo(reticulum_crates, "reticulum_crates")
+
 bazel_dep(name = "rules_go", version = "0.60.0", repo_name = "io_bazel_rules_go")
 
 go_sdk = use_extension("@io_bazel_rules_go//go:extensions.bzl", "go_sdk")

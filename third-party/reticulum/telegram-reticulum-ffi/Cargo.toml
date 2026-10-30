@@ -1,0 +1,30 @@
+[package]
+name = "telegram-reticulum-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "C ABI over the Reticulum-rust transport and LXMF-rust router for the Telegram-iOS Reticulum backend"
+license = "GPL-2.0-only"
+publish = false
+
+[lib]
+name = "telegram_reticulum_ffi"
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = []
+# The RNode interface (BLE / USB via rns_rnode_iface_*). Pulls in Reticulum-rust's
+# `serial` feature (serialport + btleplug), which does not build on a stock Linux
+# container without libdbus; the iOS Bazel target enables it, `cargo test` on Linux does not.
+rnode = ["reticulum_rust/serial"]
+# Bluetooth LE to an RTNode (rns_prns_ble_*); pure Rust state machine, host-driven radio.
+prns-ble = ["reticulum_rust/prns-ble"]
+
+[dependencies]
+reticulum_rust = { path = "../Reticulum-rust", default-features = false }
+lxmf_rust = { path = "../LXMF-rust", default-features = false }
+# The version lxmf_rust pins: fields are rmpv values of its own LXMessage.
+rmpv = "=1.0.0"
+
+[dev-dependencies]
+tempfile = "3"
+hex = "0.4"

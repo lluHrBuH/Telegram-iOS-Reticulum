@@ -38,3 +38,12 @@ url=../tgcalls.git
 [submodule "third-party/mtproto-engine"]
 	path = third-party/mtproto-engine
 	url = https://github.com/TelegramMessenger/mtproto-engine.git
+[submodule "third-party/reticulum/Reticulum-rust"]
+	path = third-party/reticulum/Reticulum-rust
+	url = https://github.com/jrl290/Reticulum-rust.git
+[submodule "third-party/reticulum/LXMF-rust"]
+	path = third-party/reticulum/LXMF-rust
+	url = https://github.com/jrl290/LXMF-rust.git
+[submodule "third-party/reticulum/app-links"]
+	path = third-party/reticulum/app-links
+	url = https://github.com/jrl290/app-links.git
