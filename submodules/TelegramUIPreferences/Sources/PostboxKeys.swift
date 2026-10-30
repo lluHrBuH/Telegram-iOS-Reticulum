@@ -63,6 +63,7 @@ private enum ApplicationSpecificSharedDataKeyValues: Int32 {
     case mediaDisplaySettings = 20
     case updateSettings = 21
     case chatSettings = 22
+    case reticulumSettings = 23
 }
 
 public struct ApplicationSpecificSharedDataKeys {
@@ -78,6 +79,7 @@ public struct ApplicationSpecificSharedDataKeys {
     public static let musicPlaybackSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.musicPlaybackSettings.rawValue)
     public static let mediaInputSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.mediaInputSettings.rawValue)
     public static let experimentalUISettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.experimentalUISettings.rawValue)
+    public static let reticulumSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.reticulumSettings.rawValue)
     public static let stickerSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.stickerSettings.rawValue)
     public static let watchPresetSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.watchPresetSettings.rawValue)
     public static let webSearchSettings: EngineDataBuffer = applicationSpecificSharedDataKey(ApplicationSpecificSharedDataKeyValues.webSearchSettings.rawValue)

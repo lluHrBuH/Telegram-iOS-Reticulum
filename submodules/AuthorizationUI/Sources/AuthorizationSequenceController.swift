@@ -146,6 +146,12 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
                     if let strings = strings {
                         strongSelf.presentationData = strongSelf.presentationData.withStrings(strings)
                     }
+                    // The Reticulum backend has no phone numbers: an identity made or imported on
+                    // this device is the account, and a name is all it asks for.
+                    if strongSelf.account.network.engineKind == .reticulum {
+                        strongSelf.pushViewController(strongSelf.reticulumIdentityController(), animated: true)
+                        return
+                    }
                     let masterDatacenterId = strongSelf.account.masterDatacenterId
                     let isTestingEnvironment = strongSelf.account.testingEnvironment
                     
@@ -158,6 +164,46 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         return controller
     }
     
+    // MARK: - Reticulum onboarding (identity, then a name)
+
+    private func reticulumIdentityController() -> ViewController {
+        return reticulumIdentityController(sharedContext: self.sharedContext, account: self.account, presentationData: self.presentationData, completed: { [weak self] address in
+            guard let self else {
+                return
+            }
+            self.pushViewController(self.reticulumNameController(address: address), animated: true)
+        })
+    }
+
+    private func reticulumNameController(address: ReticulumAddress) -> ViewController {
+        let controller = AuthorizationSequenceSignUpController(sharedContext: self.sharedContext, presentationData: self.presentationData, back: { [weak self] in
+            self?.popViewController(animated: true)
+        }, displayCancel: false)
+        controller.updateData(firstName: "", lastName: "", termsOfService: nil)
+        controller.signUpWithName = { [weak self, weak controller] firstName, lastName, _, _, _, _ in
+            guard let self else {
+                return
+            }
+            controller?.inProgress = true
+            self.actionDisposable.set((createReticulumAccount(accountManager: self.sharedContext.accountManager, account: self.account, address: address, firstName: firstName, lastName: lastName)
+            |> deliverOnMainQueue).start(error: { [weak self, weak controller] error in
+                guard let self else {
+                    return
+                }
+                controller?.inProgress = false
+                let text: String
+                switch error {
+                case .noReticulumBackend:
+                    text = "This build has no Reticulum backend."
+                case .serverUnavailable:
+                    text = "The local server could not be opened."
+                }
+                controller?.present(textAlertController(sharedContext: self.sharedContext, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: self.presentationData.strings.Common_OK, action: {})]), in: .window(.root))
+            }))
+        }
+        return controller
+    }
+
     private func phoneEntryController(countryCode: Int32, number: String, splashController: AuthorizationSequenceSplashController?) -> AuthorizationSequencePhoneEntryController {
         var currentController: AuthorizationSequencePhoneEntryController?
         for c in self.viewControllers {

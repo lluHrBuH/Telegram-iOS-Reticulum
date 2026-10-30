@@ -85,16 +85,25 @@ public final class ReticulumNetworkEngineFactory: NetworkEngineFactory {
     public typealias TransportProvider = (NetworkEngineAccountEnvironment) -> Signal<ReticulumTransport?, NoError>
 
     public let kind: NetworkEngineKind = .reticulum
+    public let identityProvider: ReticulumIdentityProvider
     private let transportProvider: TransportProvider
+    /// The factory for the MTProto engines (`.rust`), when the Debug Settings switch prefers one.
+    private let fallback: NetworkEngineFactory?
     private let lock = NSLock()
     private var servers: [String: LocalServer] = [:]
 
-    public init(transportProvider: @escaping TransportProvider) {
+    public init(identityProvider: ReticulumIdentityProvider, transportProvider: @escaping TransportProvider, fallback: NetworkEngineFactory? = nil) {
+        self.identityProvider = identityProvider
         self.transportProvider = transportProvider
+        self.fallback = fallback
+    }
+
+    public var supportsWebProxy: Bool {
+        return self.fallback?.supportsWebProxy ?? false
     }
 
     public func makeEngine(context: MTContext, isAppExtension: Bool) -> NetworkEngine? {
-        return nil
+        return self.fallback?.makeEngine(context: context, isAppExtension: isAppExtension)
     }
 
     public func makeEngine(context: MTContext, environment: NetworkEngineAccountEnvironment) -> NetworkEngine? {

@@ -40,6 +40,7 @@ swift_library(
         "//submodules/AuthorizationUtils:AuthorizationUtils",
         "//submodules/ManagedAnimationNode:ManagedAnimationNode",
         "//submodules/AlertUI:AlertUI",
+        "//submodules/ItemListUI:ItemListUI",
         "//submodules/TelegramUI/Components/TextNodeWithEntities:TextNodeWithEntities",
         "//submodules/MoreButtonNode:MoreButtonNode",
         "//submodules/ContextUI:ContextUI",

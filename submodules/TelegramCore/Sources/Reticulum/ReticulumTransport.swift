@@ -30,6 +30,17 @@ public struct ReticulumAddress: Hashable, CustomStringConvertible {
     }
 }
 
+/// Hex for keys and addresses, in the one spelling every screen uses (lowercase, no separators).
+public enum ReticulumHex {
+    public static func data(from text: String) -> Data? {
+        return Data(hexString: text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    public static func string(_ data: Data) -> String {
+        return data.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 extension Data {
     init?(hexString: String) {
         let characters = Array(hexString.utf8)
