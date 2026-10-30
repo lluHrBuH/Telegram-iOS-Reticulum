@@ -23,6 +23,11 @@ typedef struct TLFunctionInfo {
 /// The function table entry of a generated argument object.
 const TLFunctionInfo *TLObjectFunctionInfo(TLObject *object);
 
+/// Parses a serialized function call (its id first, then the arguments as a constructor body) into
+/// the same argument object the `Api.functions.*` builders make. Fails (NULL) on an unknown function
+/// id (reported to the unknown-constructor handler) or a truncated body.
+TLObject *_Nullable TLParseFunctionCall(TLReader *reader) NS_RETURNS_RETAINED;
+
 /// Parses a response to `info`'s function: a boxed object, or a vector of objects/ints/longs/strings.
 id _Nullable TLParseFunctionResult(TLReader *reader, const TLFunctionInfo *info) NS_RETURNS_RETAINED;
 

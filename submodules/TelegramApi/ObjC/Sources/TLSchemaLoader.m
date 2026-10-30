@@ -398,6 +398,18 @@ const TLConstructorInfo *TLApiFunctionConstructorAt(uint32_t index) {
     return &TLApiSchemaTable()->functions[index].constructor;
 }
 
+const TLFunctionInfo *_Nullable TLApiFunctionWithId(int32_t constructorId) {
+    // The function table keeps schema order (TLApiFunctionAt), not id order, so this is a scan:
+    // ~800 entries, called once per request an in-process server answers.
+    const TLSchemaTable *table = TLApiSchemaTable();
+    for (uint32_t i = 0; i < table->functionCount; i++) {
+        if (table->functions[i].constructor.constructorId == (uint32_t)constructorId) {
+            return &table->functions[i];
+        }
+    }
+    return NULL;
+}
+
 const TLConstructorInfo *_Nullable TLApiConstructorWithId(int32_t constructorId) {
     const TLSchemaTable *table = TLApiSchemaTable();
     uint32_t key = (uint32_t)constructorId;

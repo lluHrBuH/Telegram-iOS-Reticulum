@@ -17,5 +17,7 @@ const TLConstructorInfo *TLApiConstructorAt(uint32_t index);   // ascending cons
 const TLFunctionInfo *TLApiFunctionAt(uint32_t index);
 const TLConstructorInfo *TLApiFunctionConstructorAt(uint32_t index);   // &TLApiFunctionAt(index)->constructor
 const TLConstructorInfo *_Nullable TLApiConstructorWithId(int32_t constructorId);
+/// The function with this id, for parsing a serialized `Api.functions.*` call (an in-process server).
+const TLFunctionInfo *_Nullable TLApiFunctionWithId(int32_t constructorId);
 
 NS_ASSUME_NONNULL_END

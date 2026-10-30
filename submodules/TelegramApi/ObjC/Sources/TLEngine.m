@@ -351,6 +351,23 @@ const TLFunctionInfo *TLObjectFunctionInfo(TLObject *object) {
     return (const TLFunctionInfo *)object->_tl_info;
 }
 
+TLObject *_Nullable TLParseFunctionCall(TLReader *reader) {
+    int32_t constructorId = 0;
+    if (!TLReadInt32(reader, &constructorId)) {
+        return nil;
+    }
+    const TLFunctionInfo *info = TLApiFunctionWithId(constructorId);
+    if (info == NULL) {
+        if (TLUnknownConstructorHandler != NULL) {
+            TLUnknownConstructorHandler(constructorId);
+        }
+        return nil;
+    }
+    // The argument object's info is the function's constructor, so TLObjectFunctionInfo and
+    // TLSerialize work on it exactly as on a builder's object.
+    return TLParseBody(reader, &info->constructor);
+}
+
 id _Nullable TLParseFunctionResult(TLReader *reader, const TLFunctionInfo *info) {
     const TLFieldInfo *result = &info->result;
     switch (result->kind) {
