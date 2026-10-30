@@ -354,6 +354,9 @@ final class LocalServerStore {
         var name: String
         /// The file's path, relative to the store's directory.
         var relativePath: String
+        var width: Int32?
+        var height: Int32?
+        var accessHash: Int64?
     }
 
     func file(id: Int64) -> FileRecord? {

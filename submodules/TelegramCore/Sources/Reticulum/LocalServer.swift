@@ -71,7 +71,7 @@ public final class LocalServer {
             return nil
         }
         self.store = store
-        self.handlers = self.launchHandlers().merging(self.messagingHandlers(), uniquingKeysWith: { _, second in second })
+        self.handlers = self.launchHandlers().merging(self.messagingHandlers(), uniquingKeysWith: { _, second in second }).merging(self.mediaHandlers(), uniquingKeysWith: { _, second in second })
 
         self.transportDisposable.set((transport
         |> deliverOn(self.queue)).start(next: { [weak self] transport in

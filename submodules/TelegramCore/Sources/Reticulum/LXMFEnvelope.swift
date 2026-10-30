@@ -42,6 +42,9 @@ struct LXMFEnvelope: Equatable {
         case client = 9
         /// The sender's message date, seconds since 1970 (message, edit).
         case date = 10
+        /// TL bytes of the sender's boxed `MessageMedia` (message): the attributes of the bytes
+        /// in the standard image/audio/attachment fields; the receiver mints its own ids.
+        case media = 11
     }
 
     var kind: Kind
@@ -53,6 +56,7 @@ struct LXMFEnvelope: Equatable {
     var firstName: String?
     var lastName: String?
     var date: Int32?
+    var media: Api.MessageMedia?
 
     static let clientVersion = "telegram-ios-reticulum/1"
 
@@ -88,6 +92,11 @@ struct LXMFEnvelope: Equatable {
         if let date = self.date {
             entries.append((.int(Key.date.rawValue), .int(Int64(date))))
         }
+        if let media = self.media {
+            let buffer = Buffer()
+            media.serialize(buffer, true)
+            entries.append((.int(Key.media.rawValue), .binary(buffer.makeData())))
+        }
         return .map(entries)
     }
 
@@ -108,6 +117,9 @@ struct LXMFEnvelope: Equatable {
         self.firstName = data[Key.firstName.rawValue]?.stringValue
         self.lastName = data[Key.lastName.rawValue]?.stringValue
         self.date = data[Key.date.rawValue]?.intValue.map { Int32(clamping: $0) }
+        if let mediaData = data[Key.media.rawValue]?.binaryValue {
+            self.media = Api.parse(Buffer(data: mediaData)) as? Api.MessageMedia
+        }
     }
 
     /// The LXMF fields of an outgoing message: the envelope, and the standard reply field.
@@ -123,6 +135,6 @@ struct LXMFEnvelope: Equatable {
     }
 
     static func == (lhs: LXMFEnvelope, rhs: LXMFEnvelope) -> Bool {
-        return lhs.kind == rhs.kind && lhs.target == rhs.target && lhs.targets == rhs.targets && lhs.text == rhs.text && lhs.entities.count == rhs.entities.count && lhs.reaction == rhs.reaction && lhs.firstName == rhs.firstName && lhs.lastName == rhs.lastName && lhs.date == rhs.date
+        return lhs.kind == rhs.kind && lhs.target == rhs.target && lhs.targets == rhs.targets && lhs.text == rhs.text && lhs.entities.count == rhs.entities.count && lhs.reaction == rhs.reaction && lhs.firstName == rhs.firstName && lhs.lastName == rhs.lastName && lhs.date == rhs.date && (lhs.media == nil) == (rhs.media == nil)
     }
 }

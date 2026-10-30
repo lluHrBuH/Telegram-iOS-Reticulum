@@ -91,7 +91,7 @@ extension LocalServer {
     /// Sends in flight by random id, so a resend of a message still travelling joins it.
     private static var pendingSends: [Int64: Promise<SendOutcome>] = [:]
 
-    private func apiMessage(id: Int32, out: Bool, peerId: Int64, fromId: Int64, text: String, entities: [Api.MessageEntity], replyToId: Int32?, date: Int32, editDate: Int32? = nil, reactions: Api.MessageReactions? = nil) -> Api.Message {
+    func apiMessage(id: Int32, out: Bool, peerId: Int64, fromId: Int64, text: String, entities: [Api.MessageEntity], media: Api.MessageMedia? = nil, replyToId: Int32?, date: Int32, editDate: Int32? = nil, reactions: Api.MessageReactions? = nil) -> Api.Message {
         var flags: Int32 = 1 << 8
         if out {
             flags |= 1 << 1
@@ -110,7 +110,10 @@ extension LocalServer {
         if reactions != nil {
             flags |= 1 << 20
         }
-        return .message(.init(flags: flags, flags2: 0, id: id, fromId: .peerUser(.init(userId: fromId)), fromBoostsApplied: nil, fromRank: nil, peerId: .peerUser(.init(userId: peerId)), savedPeerId: nil, fwdFrom: nil, viaBotId: nil, viaBusinessBotId: nil, guestchatViaFrom: nil, replyTo: replyHeader, date: date, message: text, media: nil, replyMarkup: nil, entities: entities.isEmpty ? nil : entities, views: nil, forwards: nil, replies: nil, editDate: editDate, postAuthor: nil, groupedId: nil, reactions: reactions, restrictionReason: nil, ttlPeriod: nil, quickReplyShortcutId: nil, effect: nil, factcheck: nil, reportDeliveryUntilDate: nil, paidMessageStars: nil, suggestedPost: nil, scheduleRepeatPeriod: nil, summaryFromLanguage: nil, richMessage: nil))
+        if media != nil {
+            flags |= 1 << 9
+        }
+        return .message(.init(flags: flags, flags2: 0, id: id, fromId: .peerUser(.init(userId: fromId)), fromBoostsApplied: nil, fromRank: nil, peerId: .peerUser(.init(userId: peerId)), savedPeerId: nil, fwdFrom: nil, viaBotId: nil, viaBusinessBotId: nil, guestchatViaFrom: nil, replyTo: replyHeader, date: date, message: text, media: media, replyMarkup: nil, entities: entities.isEmpty ? nil : entities, views: nil, forwards: nil, replies: nil, editDate: editDate, postAuthor: nil, groupedId: nil, reactions: reactions, restrictionReason: nil, ttlPeriod: nil, quickReplyShortcutId: nil, effect: nil, factcheck: nil, reportDeliveryUntilDate: nil, paidMessageStars: nil, suggestedPost: nil, scheduleRepeatPeriod: nil, summaryFromLanguage: nil, richMessage: nil))
     }
 
     func storeMessage(_ message: Api.Message, peerId: Int64) {
@@ -139,7 +142,7 @@ extension LocalServer {
 
     /// `messages.sendMessage`: the server's copy, then the LXMF, then the answer once the router
     /// reports the message sent or delivered. A failure drops the copy so a resend starts over.
-    func send(text: String, entities: [Api.MessageEntity], replyTo: Api.InputReplyTo?, randomId: Int64, to record: LocalServerStore.PeerRecord) -> Signal<LocalServerAnswer, MTRpcError> {
+    func send(text: String, entities: [Api.MessageEntity], media: Api.MessageMedia? = nil, attachment: MediaAttachment? = nil, replyTo: Api.InputReplyTo?, randomId: Int64, to record: LocalServerStore.PeerRecord) -> Signal<LocalServerAnswer, MTRpcError> {
         guard let selfUserId = self.selfUserId else {
             return .fail(localServerError(401, "AUTH_KEY_UNREGISTERED"))
         }
@@ -154,7 +157,11 @@ extension LocalServer {
             }
         }
         if randomId != 0, let existing = self.store.messageId(randomId: randomId), let message = self.storedMessage(peerId: existing.peerId, id: existing.id), case let .message(data) = message {
-            return .single(.value(Api.Updates.updateShortSentMessage(.init(flags: 1 << 1, id: data.id, pts: self.store.state().pts, ptsCount: 0, date: data.date, media: nil, entities: data.entities, ttlPeriod: nil))))
+            var flags: Int32 = 1 << 1
+            if data.media != nil {
+                flags |= 1 << 9
+            }
+            return .single(.value(Api.Updates.updateShortSentMessage(.init(flags: flags, id: data.id, pts: self.store.state().pts, ptsCount: 0, date: data.date, media: data.media, entities: data.entities, ttlPeriod: nil))))
         }
 
         var replyToId: Int32?
@@ -163,7 +170,7 @@ extension LocalServer {
         }
         let id = self.allocateMessageId()
         let date = self.now()
-        let message = self.apiMessage(id: id, out: true, peerId: record.peerId, fromId: selfUserId, text: text, entities: entities, replyToId: replyToId, date: date)
+        let message = self.apiMessage(id: id, out: true, peerId: record.peerId, fromId: selfUserId, text: text, entities: entities, media: media, replyToId: replyToId, date: date)
         self.store.transaction {
             self.storeMessage(message, peerId: record.peerId)
             if randomId != 0 {
@@ -178,6 +185,11 @@ extension LocalServer {
                 Api.Update.updateNewMessage(.init(message: message, pts: pts, ptsCount: 1)).serialize(buffer, true)
                 return buffer.makeData()
             }())
+            if media != nil {
+                // A media send is answered with the whole message: the client takes the minted
+                // photo or document from it (updateShortSentMessage carries no message).
+                return .updates(.init(updates: [.updateMessageID(.init(id: id, randomId: randomId)), .updateNewMessage(.init(message: message, pts: pts, ptsCount: 1))], users: [], chats: [], date: date, seq: 0))
+            }
             return .updateShortSentMessage(.init(flags: 1 << 1, id: id, pts: pts, ptsCount: 1, date: date, media: nil, entities: entities.isEmpty ? nil : entities, ttlPeriod: nil))
         }
 
@@ -194,8 +206,13 @@ extension LocalServer {
         envelope.text = text
         envelope.entities = entities
         envelope.date = date
+        envelope.media = media
         let replyHash = replyToId.flatMap { self.store.messageHash(peerId: record.peerId, id: $0) }
-        let outgoing = ReticulumOutgoingMessage(destination: address, content: Data(text.utf8), title: Data(), fields: envelope.fields(replyTo: replyHash), method: .direct)
+        var fields = envelope.fields(replyTo: replyHash)
+        if let attachment = attachment {
+            fields.append(contentsOf: attachment.fields)
+        }
+        let outgoing = ReticulumOutgoingMessage(destination: address, content: Data(text.utf8), title: Data(), fields: fields, method: .direct)
 
         let promise = Promise<SendOutcome>()
         LocalServer.pendingSends[randomId] = promise
@@ -248,11 +265,11 @@ extension LocalServer {
 
     /// A control envelope to a peer, fire and forget; only peers that have shown the envelope get
     /// one (a stock LXMF client would show it as an empty message).
-    private func sendControl(_ envelope: LXMFEnvelope, to record: LocalServerStore.PeerRecord, opportunistic: Bool = false) {
+    private func sendControl(_ envelope: LXMFEnvelope, to record: LocalServerStore.PeerRecord, opportunistic: Bool = false, extraFields: [(id: UInt8, value: MsgPackValue)] = []) {
         guard record.speaksTelegram, record.peerId != self.selfUserId, let transport = self.transport, let address = self.address(of: record) else {
             return
         }
-        let message = ReticulumOutgoingMessage(destination: address, content: Data(), title: Data(), fields: envelope.fields(replyTo: nil), method: opportunistic ? .opportunistic : .direct)
+        let message = ReticulumOutgoingMessage(destination: address, content: Data(), title: Data(), fields: envelope.fields(replyTo: nil) + extraFields, method: opportunistic ? .opportunistic : .direct)
         let _ = transport.send(message).start()
     }
 
@@ -267,8 +284,9 @@ extension LocalServer {
         var envelope = LXMFEnvelope(kind: .profile)
         envelope.firstName = first
         envelope.lastName = last
+        let photoFields = self.profilePhotoFields()
         for record in self.store.allPeers() where record.isContact || self.store.dialog(peerId: record.peerId) != nil {
-            self.sendControl(envelope, to: record)
+            self.sendControl(envelope, to: record, extraFields: photoFields)
         }
     }
 
@@ -465,7 +483,7 @@ extension LocalServer {
         case .reaction?:
             self.receiveReaction(envelope!, from: record)
         case .profile?:
-            self.receiveProfile(envelope!, from: record)
+            self.receiveProfile(envelope!, incoming: incoming, from: record)
         case .message?, .none:
             self.receiveMessage(incoming, envelope: envelope, from: record, selfUserId: selfUserId)
         }
@@ -477,10 +495,11 @@ extension LocalServer {
         if text.isEmpty, let title = String(data: incoming.title, encoding: .utf8), !title.isEmpty {
             text = title
         }
-        if text.isEmpty {
+        let media = self.media(fromIncoming: incoming, envelope: envelope)
+        if text.isEmpty && media == nil {
             text = LXMFPlainFields.describeAttachments(incoming) ?? ""
         }
-        if text.isEmpty {
+        if text.isEmpty && media == nil {
             return
         }
         var replyToId: Int32?
@@ -494,7 +513,7 @@ extension LocalServer {
             date = min(sent, now)
         }
         let id = self.allocateMessageId()
-        let message = self.apiMessage(id: id, out: false, peerId: record.peerId, fromId: record.peerId, text: text, entities: entities, replyToId: replyToId, date: date)
+        let message = self.apiMessage(id: id, out: false, peerId: record.peerId, fromId: record.peerId, text: text, entities: entities, media: media, replyToId: replyToId, date: date)
         self.store.transaction {
             self.storeMessage(message, peerId: record.peerId)
             self.store.setMessageHash(peerId: record.peerId, id: id, lxmfHash: incoming.hash)
@@ -553,19 +572,26 @@ extension LocalServer {
         self.emit([update], users: [self.apiUser(record)])
     }
 
-    private func receiveProfile(_ envelope: LXMFEnvelope, from record: LocalServerStore.PeerRecord) {
+    private func receiveProfile(_ envelope: LXMFEnvelope, incoming: ReticulumIncomingMessage, from record: LocalServerStore.PeerRecord) {
         var updated = record
         let name = [envelope.firstName ?? "", envelope.lastName ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
-        guard !name.isEmpty else {
+        var updates: [Api.Update] = []
+        if !name.isEmpty {
+            updated.announcedName = name
+            if !updated.isContact {
+                updated.firstName = envelope.firstName ?? ""
+                updated.lastName = envelope.lastName ?? ""
+            }
+            updates.append(.updateUserName(.init(userId: updated.peerId, firstName: updated.firstName, lastName: updated.lastName, usernames: [])))
+        }
+        if self.receiveProfilePhoto(incoming, record: &updated) {
+            updates.append(.updateUser(.init(userId: updated.peerId)))
+        }
+        guard !updates.isEmpty else {
             return
         }
-        updated.announcedName = name
-        if !updated.isContact {
-            updated.firstName = envelope.firstName ?? ""
-            updated.lastName = envelope.lastName ?? ""
-        }
         self.store.setPeer(updated)
-        self.emit([.updateUserName(.init(userId: updated.peerId, firstName: updated.firstName, lastName: updated.lastName, usernames: []))], users: [self.apiUser(updated)])
+        self.emit(updates, users: [self.apiUser(updated)])
     }
 }
 

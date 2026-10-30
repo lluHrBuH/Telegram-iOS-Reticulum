@@ -393,6 +393,72 @@ final class LocalServerTests: XCTestCase {
         }), Set([self.selfUserId, self.peerUserId]))
     }
 
+    /// A PNG header with the given size: enough for `ImageHeader`, which reads IHDR only.
+    private func pngBytes(width: UInt32, height: UInt32) -> Data {
+        var data = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52])
+        for value in [width, height] {
+            data.append(contentsOf: [UInt8(value >> 24 & 0xFF), UInt8(value >> 16 & 0xFF), UInt8(value >> 8 & 0xFF), UInt8(value & 0xFF)])
+        }
+        data.append(contentsOf: [8, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        return data
+    }
+
+    func testMediaTravelsInStandardLxmfFieldsAndIsServedBack() {
+        // A stock client's image (field 0x06, no envelope) becomes a photo message.
+        let png = self.pngBytes(width: 3, height: 2)
+        self.transport.deliver(self.incoming(text: "", fields: .map([(key: .int(0x06), value: .array([.string("png"), .binary(png)]))])))
+        self.waitForUpdates(count: 1)
+        guard case let .updateNewMessage(data)? = self.sink.updates().first, case let .message(message) = data.message, case let .messageMediaPhoto(mediaPhoto)? = message.media, case let .photo(photo)? = mediaPhoto.photo else {
+            return XCTFail("a photo message expected, got \(self.sink.updates())")
+        }
+        guard case let .photoSize(size)? = photo.sizes.first else {
+            return XCTFail("size")
+        }
+        XCTAssertEqual(size.w, 3)
+        XCTAssertEqual(size.h, 2)
+        XCTAssertEqual(size.size, Int32(png.count))
+        XCTAssertEqual(photo.dcId, 1)
+
+        // The client downloads it from this server like any file.
+        let location = Api.InputFileLocation.inputPhotoFileLocation(.init(id: photo.id, accessHash: photo.accessHash, fileReference: Buffer(), thumbSize: "x"))
+        guard case let .file(served)? = self.result(Api.functions.upload.getFile(flags: 0, location: location, offset: 0, limit: 1024 * 1024)) else {
+            return XCTFail("getFile")
+        }
+        XCTAssertEqual(served.bytes.makeData(), png)
+        guard case let .file(tail)? = self.result(Api.functions.upload.getFile(flags: 0, location: location, offset: Int64(png.count - 4), limit: 1024)) else {
+            return XCTFail("getFile tail")
+        }
+        XCTAssertEqual(tail.bytes.makeData(), png.suffix(4))
+
+        // Sending a photo: parts, then sendMedia; the bytes go out in field 0x06 beside the envelope.
+        let outgoingPng = self.pngBytes(width: 40, height: 30)
+        let half = outgoingPng.count / 2
+        XCTAssertNotNil(self.result(Api.functions.upload.saveFilePart(fileId: 505, filePart: 0, bytes: Buffer(data: outgoingPng.prefix(half)))))
+        XCTAssertNotNil(self.result(Api.functions.upload.saveFilePart(fileId: 505, filePart: 1, bytes: Buffer(data: outgoingPng.suffix(from: half)))))
+        let peer = Api.InputPeer.inputPeerUser(.init(userId: self.peerUserId, accessHash: 0))
+        let inputMedia = Api.InputMedia.inputMediaUploadedPhoto(.init(flags: 0, file: .inputFile(.init(id: 505, parts: 2, name: "a.png", md5Checksum: "")), stickers: nil, ttlSeconds: nil, video: nil))
+        guard case let .updates(sent)? = self.result(Api.functions.messages.sendMedia(flags: 0, peer: peer, replyTo: nil, media: inputMedia, message: "look", randomId: 91, replyMarkup: nil, entities: nil, scheduleDate: nil, scheduleRepeatPeriod: nil, sendAs: nil, quickReplyShortcut: nil, effect: nil, allowPaidStars: nil, suggestedPost: nil)) else {
+            return XCTFail("sendMedia")
+        }
+        XCTAssertEqual(sent.updates.count, 2)
+        guard case let .updateNewMessage(newMessage)? = sent.updates.last, case let .message(sentMessage) = newMessage.message, case let .messageMediaPhoto(sentMedia)? = sentMessage.media, case let .photo(sentPhoto)? = sentMedia.photo, case let .photoSize(sentSize)? = sentPhoto.sizes.first else {
+            return XCTFail("the answer carries the minted photo")
+        }
+        XCTAssertEqual(sentSize.w, 40)
+        XCTAssertEqual(sentMessage.message, "look")
+        guard let outgoing = self.transport.lastSent else {
+            return XCTFail("nothing sent")
+        }
+        let fields = MsgPackValue.map(outgoing.fields.map { (key: MsgPackValue.int(Int64($0.id)), value: $0.value) })
+        XCTAssertEqual(fields[0x06]?.arrayValue?.first?.stringValue, "png")
+        XCTAssertEqual(fields[0x06]?.arrayValue?.last?.binaryValue, outgoingPng)
+        guard let envelope = LXMFEnvelope(fields: fields) else {
+            return XCTFail("envelope")
+        }
+        XCTAssertNotNil(envelope.media, "a Telegram peer gets the media's attributes")
+        XCTAssertEqual(MsgPackValue.decode(fields.encoded()), fields)
+    }
+
     func testAFailedDeliveryIsAnErrorAndLeavesNothingBehind() {
         self.transport.deliver(self.incoming(text: "ping"))
         self.waitForUpdates(count: 1)

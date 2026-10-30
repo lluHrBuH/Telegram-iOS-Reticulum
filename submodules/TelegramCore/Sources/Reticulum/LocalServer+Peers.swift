@@ -237,7 +237,12 @@ extension LocalServer {
             status = .userStatusEmpty
         }
         let username = ReticulumAddress(hash: record.destinationHash).map(LocalServerPeerIdentity.username(for:)) ?? ""
-        return .user(.init(flags: flags, flags2: 0, id: record.peerId, accessHash: record.accessHash, firstName: record.firstName.isEmpty ? nil : record.firstName, lastName: record.lastName.isEmpty ? nil : record.lastName, username: username, phone: nil, photo: nil, status: status, botInfoVersion: nil, restrictionReason: nil, botInlinePlaceholder: nil, langCode: nil, emojiStatus: nil, usernames: nil, storiesMaxId: nil, color: nil, profileColor: nil, botActiveUsers: nil, botVerificationIcon: nil, sendPaidMessagesStars: nil, linkedCommunityId: nil))
+        var photo: Api.UserProfilePhoto?
+        if let photoId = record.photoId, self.store.file(id: photoId) != nil {
+            flags |= 1 << 5
+            photo = .userProfilePhoto(.init(flags: 0, photoId: photoId, strippedThumb: nil, dcId: 1))
+        }
+        return .user(.init(flags: flags, flags2: 0, id: record.peerId, accessHash: record.accessHash, firstName: record.firstName.isEmpty ? nil : record.firstName, lastName: record.lastName.isEmpty ? nil : record.lastName, username: username, phone: nil, photo: photo, status: status, botInfoVersion: nil, restrictionReason: nil, botInlinePlaceholder: nil, langCode: nil, emojiStatus: nil, usernames: nil, storiesMaxId: nil, color: nil, profileColor: nil, botActiveUsers: nil, botVerificationIcon: nil, sendPaidMessagesStars: nil, linkedCommunityId: nil))
     }
 
     func apiUsers(ids: Set<Int64>) -> [Api.User] {
