@@ -759,6 +759,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
     case enableNetworkFramework(Bool)
     case enableNetworkExperiments(Bool)
     case rustMTProtoEngine(Bool)
+    case reticulumBackend(Bool)
     case networkEngineInfo(String)
     case restorePurchases(PresentationTheme)
     case logTranslationRecognition(Bool)
@@ -792,7 +793,7 @@ private enum DebugControllerEntry: ItemListNodeEntry {
             return DebugControllerSection.experiments.rawValue
         case .logTranslationRecognition, .resetTranslationStates:
             return DebugControllerSection.translation.rawValue
-        case .disableVideoAspectScaling, .enableNetworkFramework, .enableNetworkExperiments, .rustMTProtoEngine, .networkEngineInfo:
+        case .disableVideoAspectScaling, .enableNetworkFramework, .enableNetworkExperiments, .rustMTProtoEngine, .reticulumBackend, .networkEngineInfo:
             return DebugControllerSection.videoExperiments2.rawValue
         case .versionInfo:
             return DebugControllerSection.appInfo.rawValue
@@ -965,6 +966,8 @@ private enum DebugControllerEntry: ItemListNodeEntry {
             return 111
         case .sendProfileLogs:
             return 112
+        case .reticulumBackend:
+            return 113
         }
     }
 
@@ -1710,6 +1713,15 @@ private enum DebugControllerEntry: ItemListNodeEntry {
                     return settings
                 }).start()
             })
+        case let .reticulumBackend(value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: "Reticulum Backend [Restart App]", value: value, sectionId: self.section, style: .blocks, updated: { value in
+                let _ = updateNetworkEngineSettings(accountManager: arguments.sharedContext.accountManager, { settings in
+                    var settings = settings
+                    // Off means the Rust MTProto engine: the Telegram servers, for comparing.
+                    settings.engine = value ? .reticulum : .rust
+                    return settings
+                }).start()
+            })
         case let .networkEngineInfo(text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         case .restorePurchases:
@@ -2001,6 +2013,7 @@ private func debugControllerEntries(context: AccountContext?, sharedContext: Sha
         entries.append(.enableNetworkFramework(networkSettings?.useNetworkFramework ?? useBetaFeatures))
         entries.append(.enableNetworkExperiments(networkSettings?.useExperimentalDownload ?? true))
         entries.append(.rustMTProtoEngine(networkEngineSettings.engine == .rust))
+        entries.append(.reticulumBackend(networkEngineSettings.engine == .reticulum))
         if let context {
             // The engine this account actually runs. The switch alone does not say: the factory
             // still declines (WEB proxy, DC address overrides) and mtproto_engine_rust_disabled

@@ -587,6 +587,7 @@ swift_library(
         "//submodules/WalletContext",
         "//submodules/PasscodeCore",
         "//submodules/MTProtoRustEngine:MTProtoRustEngine",
+        "//submodules/ReticulumEngine:ReticulumEngine",
     ] + select({
         "@build_bazel_rules_apple//apple:ios_arm64": appcenter_targets,
         "//build-system:ios_sim_arm64": [],

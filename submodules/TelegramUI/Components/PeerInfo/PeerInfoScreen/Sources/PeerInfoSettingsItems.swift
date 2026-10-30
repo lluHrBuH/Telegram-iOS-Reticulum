@@ -175,7 +175,11 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             }))
         }
         
-        if !settings.proxySettings.servers.isEmpty {
+        if context.account.network.engineKind == .reticulum {
+            items[.proxy]!.append(PeerInfoScreenDisclosureItem(id: 0, label: .none, text: "Reticulum Network", icon: PresentationResourcesSettings.proxy, action: {
+                interaction.openSettings(.proxy)
+            }))
+        } else if !settings.proxySettings.servers.isEmpty {
             let proxyType: String
             if settings.proxySettings.enabled, let activeServer = settings.proxySettings.activeServer {
                 switch activeServer.connection {

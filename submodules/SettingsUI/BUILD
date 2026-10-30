@@ -85,6 +85,7 @@ swift_library(
         "//submodules/ContextUI:ContextUI",
         "//submodules/Markdown:Markdown",
         "//submodules/UndoUI:UndoUI",
+        "//submodules/ReticulumEngine:ReticulumEngine",
         "//submodules/DeleteChatPeerActionSheetItem:DeleteChatPeerActionSheetItem",
         "//submodules/PhoneNumberFormat:PhoneNumberFormat",
         "//submodules/OpenInExternalAppUI:OpenInExternalAppUI",

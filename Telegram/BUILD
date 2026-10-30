@@ -1755,6 +1755,8 @@ plist_fragment(
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Bluetooth connects the app to RNode and RTNode radios, which carry your messages over the Reticulum mesh without internet.</string>
     <key>NSCameraUsageDescription</key>
     <string>We need this so that you can take and share photos and videos.</string>
     <key>NSContactsUsageDescription</key>
@@ -1807,6 +1809,7 @@ plist_fragment(
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>
+        <string>bluetooth-central</string>
         <string>fetch</string>
         <string>location</string>
         <string>remote-notification</string>

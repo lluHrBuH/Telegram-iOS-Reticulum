@@ -54,6 +54,7 @@ import WalletSendScreen
 import PasscodeCore
 import LiquidGlassShapes
 import MTProtoRustEngine
+import ReticulumEngine
 
 #if DEBUG
 import AlertComponent
@@ -693,7 +694,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             // Only the main app passes a factory: extensions stay on MtProtoKit. Whether the Rust
             // engine runs is decided per account by resolveNetworkEngine (Debug Settings switch,
             // mtproto_engine_rust_disabled, the factory's own declines).
-            networkEngineFactory: RustNetworkEngineFactory()
+            // This fork runs on Reticulum: the local server over the mesh, with the Rust MTProto
+            // factory behind it for the Debug Settings switch that keeps an account on Telegram.
+            networkEngineFactory: ReticulumNetworkEngineFactory(identityProvider: ReticulumRuntime.shared, transportProvider: { environment in
+                return ReticulumRuntime.shared.transport(for: environment)
+            }, fallback: RustNetworkEngineFactory())
         )
         
         guard let appGroupUrl = maybeAppGroupUrl else {
@@ -1066,6 +1071,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             try resetWalletLocalSecrets()
         })
         self.accountManager = accountManager
+        // The mesh is configured from the shared settings; the stack waits for them before it starts.
+        ReticulumRuntime.shared.install(settings: reticulumSettings(accountManager: accountManager))
 
         telegramUIDeclareEncodables()
         initializeAccountManagement()
