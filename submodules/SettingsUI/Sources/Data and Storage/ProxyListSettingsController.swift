@@ -342,9 +342,13 @@ public func proxySettingsController(context: AccountContext, mode: ProxySettings
 
 public func proxySettingsController(accountManager: AccountManager<TelegramAccountManagerTypes>, sharedContext: SharedAccountContext, context: AccountContext? = nil, network: Network, mode: ProxySettingsControllerMode, presentationData: PresentationData, updatedPresentationData: Signal<PresentationData, NoError>, focusOnItemTag: ProxySettingsEntryTag? = nil) -> ViewController {
     if network.engineKind == .reticulum {
+        var isModal = false
+        if case .modal = mode {
+            isModal = true
+        }
         // A Reticulum build has no proxy to configure: every entry point that opens the proxy
         // settings (Settings, Data and Storage, the login screen's menu) opens the mesh settings.
-        return reticulumNetworkSettingsController(sharedContext: sharedContext, context: context, accountBasePath: context?.account.basePath, modal: mode == .modal, presentationData: presentationData, updatedPresentationData: updatedPresentationData)
+        return reticulumNetworkSettingsController(sharedContext: sharedContext, context: context, accountBasePath: context?.account.basePath, modal: isModal, presentationData: presentationData, updatedPresentationData: updatedPresentationData)
     }
     var pushControllerImpl: ((ViewController) -> Void)?
     var dismissImpl: (() -> Void)?

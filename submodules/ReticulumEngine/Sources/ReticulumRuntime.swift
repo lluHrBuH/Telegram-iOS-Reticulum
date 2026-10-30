@@ -82,6 +82,8 @@ public final class ReticulumRuntime: ReticulumIdentityProvider {
             let firstInstall = !self.settingsInstalled
             self.settings = settings
             self.settingsInstalled = true
+            // The local server's own behaviour on the mesh follows the same settings.
+            LocalServerPreferences.sendsTypingIndicators = settings.sendsTypingIndicators
             if firstInstall {
                 if let accountBasePath = self.startWaitingForSettings {
                     self.startWaitingForSettings = nil
