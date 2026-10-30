@@ -83,7 +83,7 @@ its host.
 K3=4483DD69-685A-4FE1-89BE-65F992C271F2   # iPhone 18 Pro K3 (use the dedicated K-sims, not the shared default)
 # The K-sims were RECREATED by the Xcode 27 update (2026-09-15), which removed every simulator:
 # they are iPhone 18 Pro now, on new UDIDs. K1=03A7DA9C-1832-49B8-9858-2F54F2FB5A04, K2=E643A78E-DB62-4DA4-9F54-BD0836F434AF.
-BUNDLE=ph.telegra.Telegraph
+BUNDLE=org.reticulum.telegram
 # Fresh build output. Go through `bazel-bin`, which bazel repoints at
 # the LAST BUILD's configuration. Do NOT `find` under `bazel-out`: it keeps one directory per
 # configuration you have ever built, so `… | head -1` can hand you a stale *device* archive. That copies
@@ -1044,6 +1044,14 @@ None of this shows up as a build error:
   so the Swift build, the Bazel tests, the `reticulum_crates` repin and the mesh probe run on the Mac.
 - Licensing: the vendored crates carry the Reticulum License (MIT + use restrictions) against the
   app's GPLv2; see `third-party/reticulum/VENDOR.md` before distributing.
+- **Bundle id and building without Telegram's codesigning:** the fork is `org.reticulum.telegram`
+  (`build-system/reticulum-development-configuration.json`; every other id derives from it, the watch
+  Xcode project and `Tests/TelegramCoreBuildTest` were edited to match). `./build.sh` runs the
+  simulator build with `--codesigningInformationPath build-system/fake-codesigning
+  --disableProvisioningProfiles`: that `Make.py` option (now honoured by `build`, `test` and
+  `generateProject`; it used to be parsed and ignored) sets `--//Telegram:disableProvisioningProfiles`
+  and accepts a missing aps-environment, so no profile has to match the bundle id. The
+  `--gitCodesigningRepository` recipe above is the maintainer's and needs their private repository.
 
 ## Rust MTProto engine on iOS
 

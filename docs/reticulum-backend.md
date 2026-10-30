@@ -141,6 +141,21 @@ no CDNs. Calls, stories, channels, bots, payments and folder sync are not implem
 methods get the schema's empty answer so nothing loops. Groups (client-side fan-out) and
 RFed-style channels are follow-ups.
 
+## Building on a Mac (`build.sh`)
+
+The fork's bundle id is `org.reticulum.telegram` (`build-system/reticulum-development-configuration.json`;
+the team id there is a placeholder until a device build needs a real one). Extensions, the app group,
+the keychain group and the watch app derive from it. `./build.sh` at the repository root runs the
+simulator build with `--codesigningInformationPath build-system/fake-codesigning
+--disableProvisioningProfiles` (a `Make.py` option added for this fork: `build`, `test` and
+`generateProject` pass `--//Telegram:disableProvisioningProfiles` and accept a missing
+aps-environment, so no profile has to match the bundle id and no codesigning repository is needed),
+re-resolves the Reticulum crates on the first run (`CARGO_BAZEL_REPIN_ONLY=reticulum_crates`), and
+writes `build-output/<timestamp>.log` plus an error digest in `build-output/errors.txt`.
+`RUN_TESTS=1` adds the TelegramApi and TelegramCore test targets, `RUN_RUST_TESTS=1` the crate's
+own tests. With the official Telegram app installed beside it, iOS picks either app for `tg://`
+links.
+
 ## Verification
 
 Nothing here can be built in the cloud container (no Xcode, no raw TCP egress). On the Mac:

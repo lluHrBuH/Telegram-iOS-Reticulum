@@ -84,7 +84,7 @@ plist_fragment(
     <key>CFBundleDisplayName</key>
     <string>Test</string>
     <key>CFBundleIdentifier</key>
-    <string>ph.telegra.Telegraph</string>
+    <string>{telegram_bundle_id}</string>
     <key>CFBundleName</key>
     <string>Telegram</string>
     <key>CFBundlePackageType</key>
@@ -136,12 +136,12 @@ plist_fragment(
     <false/>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
-    """.format(module_name=module_name)
+    """.format(module_name=module_name, telegram_bundle_id=telegram_bundle_id)
 )
 
 ios_application(
     name = module_name,
-    bundle_id = "ph.telegra.Telegraph",
+    bundle_id = telegram_bundle_id,
     families = ["iphone", "ipad"],
     minimum_os_version = "11.0",
     provisioning_profile = None,

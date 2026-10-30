@@ -453,7 +453,7 @@ def resolve_codesigning(arguments, base_path, build_configuration, provisioning_
     )
 
 
-def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, arguments, additional_codesigning_output_path):
+def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, arguments, additional_codesigning_output_path, disable_provisioning_profiles=False):
     configuration_repository_path = '{}/build-input/configuration-repository'.format(base_path)
     os.makedirs(configuration_repository_path, exist_ok=True)
 
@@ -481,8 +481,13 @@ def resolve_configuration(base_path, bazel_command_line: BazelCommandLine, argum
         additional_codesigning_output_path=additional_codesigning_output_path
     )
     if codesigning_data.aps_environment is None:
-        print('Could not find a valid aps-environment entitlement in the provided provisioning profiles')
-        sys.exit(1)
+        if disable_provisioning_profiles:
+            # A simulator build with --disableProvisioningProfiles signs nothing: no profile has to
+            # match the configured bundle id, and the aps-environment entitlement is simply left out.
+            codesigning_data = ResolvedCodesigningData(aps_environment='', use_xcode_managed_codesigning=codesigning_data.use_xcode_managed_codesigning)
+        else:
+            print('Could not find a valid aps-environment entitlement in the provided provisioning profiles')
+            sys.exit(1)
 
     if bazel_command_line is not None:
         build_configuration.write_to_variables_file(bazel_path=bazel_command_line.bazel, use_xcode_managed_codesigning=codesigning_data.use_xcode_managed_codesigning, aps_environment=codesigning_data.aps_environment, path=configuration_repository_path + '/variables.bzl')
@@ -514,11 +519,16 @@ def generate_project(bazel, arguments):
 
     bazel_command_line.set_continue_on_error(arguments.continueOnError)
 
+    disable_provisioning_profiles_requested = arguments.disableProvisioningProfiles is not None and arguments.disableProvisioningProfiles
+    if disable_provisioning_profiles_requested:
+        bazel_command_line.set_disable_provisioning_profiles()
+
     resolve_configuration(
         base_path=os.getcwd(),
         bazel_command_line=bazel_command_line,
         arguments=arguments,
-        additional_codesigning_output_path=None
+        additional_codesigning_output_path=None,
+        disable_provisioning_profiles=disable_provisioning_profiles_requested
     )
 
     bazel_command_line.set_build_number(arguments.buildNumber)
@@ -623,11 +633,15 @@ def build(bazel, arguments):
     elif arguments.cacheHost is not None:
         bazel_command_line.add_remote_cache(arguments.cacheHost)
 
+    if arguments.disableProvisioningProfiles:
+        bazel_command_line.set_disable_provisioning_profiles()
+
     resolve_configuration(
         base_path=os.getcwd(),
         bazel_command_line=bazel_command_line,
         arguments=arguments,
-        additional_codesigning_output_path=None
+        additional_codesigning_output_path=None,
+        disable_provisioning_profiles=arguments.disableProvisioningProfiles
     )
 
     bazel_command_line.set_configuration(arguments.configuration)
@@ -705,11 +719,15 @@ def test(bazel, arguments):
     elif arguments.cacheHost is not None:
         bazel_command_line.add_remote_cache(arguments.cacheHost)
 
+    if arguments.disableProvisioningProfiles:
+        bazel_command_line.set_disable_provisioning_profiles()
+
     resolve_configuration(
         base_path=os.getcwd(),
         bazel_command_line=bazel_command_line,
         arguments=arguments,
-        additional_codesigning_output_path=None
+        additional_codesigning_output_path=None,
+        disable_provisioning_profiles=arguments.disableProvisioningProfiles
     )
 
     bazel_command_line.set_configuration('debug_sim_arm64')
@@ -953,6 +971,12 @@ if __name__ == '__main__':
         default='Tests/AllTests',
         help='Bazel test target to run (default: Tests/AllTests, the full suite).'
     )
+    testParser.add_argument(
+        '--disableProvisioningProfiles',
+        action='store_true',
+        default=False,
+        help='Build without provisioning profiles (simulator only): no profile has to match the configured bundle id.',
+    )
 
     generateProjectParser = subparsers.add_parser('generateProject', help='Generate Xcode project')
     generateProjectParser.add_argument(
@@ -1060,6 +1084,12 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
         help='Continue build process after an error.',
+    )
+    buildParser.add_argument(
+        '--disableProvisioningProfiles',
+        action='store_true',
+        default=False,
+        help='Build without provisioning profiles (simulator only): no profile has to match the configured bundle id.',
     )
     buildParser.add_argument(
         '--showActions',

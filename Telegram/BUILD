@@ -2010,7 +2010,7 @@ swift_library(
 
 ios_ui_test_suite(
     name = "iOSAppUITestSuite",
-    bundle_id = "org.telegram.Telegram-iOS-uitests",
+    bundle_id = "org.reticulum.telegram.uitests",
     minimum_os_version = minimum_os_version,
     runners = [
         ":iPhone-17__26.2",

@@ -2,14 +2,14 @@
 
 export TELEGRAM_ENV_SET="1"
 
-export DEVELOPMENT_CODE_SIGN_IDENTITY="iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)"
-export DISTRIBUTION_CODE_SIGN_IDENTITY="iPhone Distribution: Digital Fortress LLC (C67CF9S4VU)"
-export DEVELOPMENT_TEAM="C67CF9S4VU"
+export DEVELOPMENT_CODE_SIGN_IDENTITY="iPhone Distribution: Digital Fortress LLC (XXXXXXXXXX)"
+export DISTRIBUTION_CODE_SIGN_IDENTITY="iPhone Distribution: Digital Fortress LLC (XXXXXXXXXX)"
+export DEVELOPMENT_TEAM="XXXXXXXXXX"
 
 export API_ID="8"
 export API_HASH="7245de8e747a0d6fbe11f7cc14fcc0bb"
 
-export BUNDLE_ID="ph.telegra.Telegraph"
+export BUNDLE_ID="org.reticulum.telegram"
 export APP_CENTER_ID="0"
 export IS_INTERNAL_BUILD="false"
 export IS_APPSTORE_BUILD="true"
@@ -22,22 +22,22 @@ if [ -z "$BUILD_NUMBER" ]; then
 	exit 1
 fi
 
-export DEVELOPMENT_PROVISIONING_PROFILE_APP="match Development ph.telegra.Telegraph"
-export DISTRIBUTION_PROVISIONING_PROFILE_APP="match AppStore ph.telegra.Telegraph"
-export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_SHARE="match Development ph.telegra.Telegraph.Share"
-export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_SHARE="match AppStore ph.telegra.Telegraph.Share"
-export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_WIDGET="match Development ph.telegra.Telegraph.Widget"
-export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_WIDGET="match AppStore ph.telegra.Telegraph.Widget"
-export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONSERVICE="match Development ph.telegra.Telegraph.NotificationService"
-export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONSERVICE="match AppStore ph.telegra.Telegraph.NotificationService"
-export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONCONTENT="match Development ph.telegra.Telegraph.NotificationContent"
-export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONCONTENT="match AppStore ph.telegra.Telegraph.NotificationContent"
-export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_INTENTS="match Development ph.telegra.Telegraph.SiriIntents"
-export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_INTENTS="match AppStore ph.telegra.Telegraph.SiriIntents"
-export DEVELOPMENT_PROVISIONING_PROFILE_WATCH_APP="match Development ph.telegra.Telegraph.watchkitapp"
-export DISTRIBUTION_PROVISIONING_PROFILE_WATCH_APP="match AppStore ph.telegra.Telegraph.watchkitapp"
-export DEVELOPMENT_PROVISIONING_PROFILE_WATCH_EXTENSION="match Development ph.telegra.Telegraph.watchkitapp.watchkitextension"
-export DISTRIBUTION_PROVISIONING_PROFILE_WATCH_EXTENSION="match AppStore ph.telegra.Telegraph.watchkitapp.watchkitextension"
+export DEVELOPMENT_PROVISIONING_PROFILE_APP="match Development org.reticulum.telegram"
+export DISTRIBUTION_PROVISIONING_PROFILE_APP="match AppStore org.reticulum.telegram"
+export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_SHARE="match Development org.reticulum.telegram.Share"
+export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_SHARE="match AppStore org.reticulum.telegram.Share"
+export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_WIDGET="match Development org.reticulum.telegram.Widget"
+export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_WIDGET="match AppStore org.reticulum.telegram.Widget"
+export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONSERVICE="match Development org.reticulum.telegram.NotificationService"
+export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONSERVICE="match AppStore org.reticulum.telegram.NotificationService"
+export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONCONTENT="match Development org.reticulum.telegram.NotificationContent"
+export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_NOTIFICATIONCONTENT="match AppStore org.reticulum.telegram.NotificationContent"
+export DEVELOPMENT_PROVISIONING_PROFILE_EXTENSION_INTENTS="match Development org.reticulum.telegram.SiriIntents"
+export DISTRIBUTION_PROVISIONING_PROFILE_EXTENSION_INTENTS="match AppStore org.reticulum.telegram.SiriIntents"
+export DEVELOPMENT_PROVISIONING_PROFILE_WATCH_APP="match Development org.reticulum.telegram.watchkitapp"
+export DISTRIBUTION_PROVISIONING_PROFILE_WATCH_APP="match AppStore org.reticulum.telegram.watchkitapp"
+export DEVELOPMENT_PROVISIONING_PROFILE_WATCH_EXTENSION="match Development org.reticulum.telegram.watchkitapp.watchkitextension"
+export DISTRIBUTION_PROVISIONING_PROFILE_WATCH_EXTENSION="match AppStore org.reticulum.telegram.watchkitapp.watchkitextension"
 
 BUILDBOX_DIR="buildbox"
 
