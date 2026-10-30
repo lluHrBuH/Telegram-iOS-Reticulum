@@ -143,6 +143,17 @@ RFed-style channels are follow-ups.
 
 ## Building on a Mac (`build.sh`)
 
+Clone with the submodules (every submodule URL is absolute; `tgcalls` and `rlottie` point at the
+TelegramMessenger repositories, where the pinned commits live):
+
+```sh
+git clone --recurse-submodules https://github.com/lluHrBuH/Telegram-iOS-Reticulum.git
+cd Telegram-iOS-Reticulum && git checkout reticulum && git submodule update --init --recursive
+```
+
+A checkout whose submodule clone failed before the URLs were made absolute recovers with
+`git pull && git submodule sync --recursive && git submodule update --init --recursive`.
+
 The fork's bundle id is `org.reticulum.telegram` (`build-system/reticulum-development-configuration.json`;
 the team id there is a placeholder until a device build needs a real one). Extensions, the app group,
 the keychain group and the watch app derive from it. `./build.sh` at the repository root runs the
